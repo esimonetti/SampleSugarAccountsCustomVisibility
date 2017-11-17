@@ -15,6 +15,9 @@ use Sugarcrm\Sugarcrm\Elasticsearch\Provider\Visibility\Filter;
 
 class HideAccounts extends SugarVisibility implements ElasticStrategyInterface
 {
+    protected $db_field_name = 'c_hidden';
+    protected $elastic_field_name = 'hidden_record';
+    
     /**
      * {@inheritdoc}
      */
@@ -25,8 +28,9 @@ class HideAccounts extends SugarVisibility implements ElasticStrategyInterface
         }
 
         $whereClause = sprintf(
-            "%s.hidden_c != '1'",
-            $this->getTableAlias()
+            "%s.%s != '1'",
+            $this->getTableAlias(),
+            $this->db_field_name
         );
 
         if (!empty($query)) {
@@ -52,7 +56,7 @@ class HideAccounts extends SugarVisibility implements ElasticStrategyInterface
     public function addVisibilityQuery(SugarQuery $sugarQuery)
     {
         if ($this->isSecurityApplicable()) {
-            $sugarQuery->where()->notEquals('hidden_c', true);
+            $sugarQuery->where()->notEquals($this->db_field_name, true);
         }
         return $sugarQuery;
     }
@@ -86,7 +90,7 @@ class HideAccounts extends SugarVisibility implements ElasticStrategyInterface
      */
     protected function getTableAlias()
     {
-        return DBManagerFactory::getInstance()->getValidDBName($this->bean->get_custom_table_name(), false, 'alias');
+        return DBManagerFactory::getInstance()->getValidDBName($this->bean->table_name, false, 'alias');
     }
 
     /**
@@ -101,7 +105,7 @@ class HideAccounts extends SugarVisibility implements ElasticStrategyInterface
      */
     public function elasticBuildMapping(Mapping $mapping, Visibility $provider)
     {
-        $mapping->addNotAnalyzedField('hidden_record');
+        $mapping->addNotAnalyzedField($this->elastic_field_name);
     }
 
     /**
@@ -109,7 +113,7 @@ class HideAccounts extends SugarVisibility implements ElasticStrategyInterface
      */
     public function elasticProcessDocumentPreIndex(Document $document, \SugarBean $bean, Visibility $provider)
     {
-        $document->setDataField('hidden_record', !empty($bean->hidden_c) ? true : false);
+        $document->setDataField($this->elastic_field_name, !empty($bean->{$this->db_field_name}) ? true : false);
     }
 
     /**
@@ -118,7 +122,7 @@ class HideAccounts extends SugarVisibility implements ElasticStrategyInterface
     public function elasticGetBeanIndexFields($module, Visibility $provider)
     {
         // this will make sure the field is retrieved for the bean, so that it is available on elasticProcessDocumentPreIndex for manipulation
-        return array('hidden_c');
+        return array($this->db_field_name);
     }
 
     /**
@@ -130,6 +134,6 @@ class HideAccounts extends SugarVisibility implements ElasticStrategyInterface
             return;
         }
 
-        $filter->addMustNot($provider->createFilter('HideAccounts'));
+        $filter->addMust($provider->createFilter('HideAccounts', array('field_name' => $this->elastic_field_name, 'field_value' => false)));
     }
 }

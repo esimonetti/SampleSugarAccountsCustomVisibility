@@ -17,7 +17,7 @@ class HideAccountsFilter implements FilterInterface
     public function buildFilter(array $options = array())
     {
         $filter = new \Elastica\Filter\Term();
-        $filter->setTerm('hidden_record', true);
+        $filter->setTerm($options['field_name'], $options['field_value']);
         return $filter;
     }
 }
